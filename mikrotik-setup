@@ -1,0 +1,90 @@
+# Run this commands to setup custom watchdog on your router
+
+/system script
+
+add dont-require-permissions=no name=timestamp owner=admin policy=\
+    ftp,reboot,read,write,policy,test,password,sniff,sensitive,romon source="#\
+    \_source: https://forum.mikrotik.com/viewtopic.php\?t=75555\r\
+    \n#\r\
+    \n:global fncJD do={\r\
+    \n:local months [:toarray \"jan,feb,mar,apr,may,jun,jul,aug,sep,oct,nov,de\
+    c\"];\r\
+    \n:local jd\r\
+    \n:local M [:pick \$1 0 3];\r\
+    \n:local D [:pick \$1 4 6];\r\
+    \n:local Y [:pick \$1 7 11];\r\
+    \n:for x from=0 to=([:len \$months] - 1) do={\r\
+    \n   :if ([:tostr [:pick \$months \$x]] = \$M) do={:set M (\$x + 1) } \r\
+    \n   }\r\
+    \n:if ( \$M = 1 || \$M = 2) do={\r\
+    \n    :set Y (\$Y-1);\r\
+    \n    :set M (\$M+12);\r\
+    \n}\r\
+    \n:local A (\$Y/100)\r\
+    \n:local B (\$A/4)\r\
+    \n:local C (2-\$A+\$B)\r\
+    \n:local E (((\$Y+4716) * 36525)/100)\r\
+    \n:local F ((306001*(\$M+1))/10000)\r\
+    \n:local jd (\$C+\$D+\$E+\$F-1525)\r\
+    \n:return \$jd\r\
+    \n};\r\
+    \n\r\
+    \n:global timestamp do={\r\
+    \n:global fncJD \$fncJD\r\
+    \n:local currtime [/system clock get time];\r\
+    \n:local jdnow [\$fncJD [/system clock get date]]\r\
+    \n:local days (\$jdnow - 2440587)\r\
+    \n:local ore [:pick \$currtime 0 2]\r\
+    \n:local minute [:pick \$currtime 3 5]\r\
+    \n:local secunde [:pick \$currtime 6 8]\r\
+    \n:return ((\$days * 86400) + (\$ore * 3600) + (\$minute * 60) + \$secunde\
+    \_- [/system clock get gmt-offset]);\r\
+    \n}"
+
+add dont-require-permissions=no name=checkup owner=admin policy=\
+    reboot,read,write,policy,test source="# Valentin Kim imort.kz@gmail.com\r\
+    \n#===========================\r\
+    \n#\r\
+    \n# Timeout between current time and last ping time before reboot, in seco\
+    nds\r\
+    \n:global waitTimeout 600\r\
+    \n\r\
+    \n# Last time when ping script was run\r\
+    \n:global watchdog\r\
+    \n\r\
+    \n# Current timestamp\r\
+    \n:global timestamp \$timestamp\r\
+    \n:global now [:put [\$timestamp]]\r\
+    \n\r\
+    \n# Debug output in the log info\r\
+    \n:global debug 1\r\
+    \n\r\
+    \n:if (\$watchdog + \$waitTimeout < \$now) do={\r\
+    \n  :log warning \"Timestamp was more than \$waitTimeout seconds ago, rebo\
+    oting...\"\r\
+    \n  /system reboot\r\
+    \n} else={\r\
+    \n  :if (\$debug = 1) do={\r\
+    \n    :local diff [(\$watchdog + \$waitTimeout - \$now)]\r\
+    \n    :log info \"Everything is good, \$diff seconds before reboot!\" \r\
+    \n  }\r\
+    \n}"
+
+add dont-require-permissions=no name=ping owner=admin policy=\
+    read,write,policy,test source="# Valentin Kim imort.kz@gmail.com\r\
+    \n#===========================\r\
+    \n# \r\
+    \n# Renew the watchdog variable value with current timestamp\r\
+    \n#\r\
+    \n:global timestamp \$timestamp\r\
+    \n:global watchdog [:put [\$timestamp]]"
+    
+/system scheduler
+
+add name=startup on-event="/system script run timestamp\r\
+    \n:global timestamp \$timestamp\r\
+    \n:global watchdog [:put [\$timestamp]]" policy=read,write,policy,test \
+    start-time=startup
+add interval=30s name=checkup on-event="/system script run checkup" policy=\
+    ftp,reboot,read,write,policy,test,password,sniff,sensitive,romon \
+    start-date=sep/12/2018 start-time=10:43:54
