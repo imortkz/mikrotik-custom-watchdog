@@ -1,0 +1,26 @@
+# /system script checkup
+# Valentin Kim imort.kz@gmail.com
+#===========================
+#
+# Timeout between current time and last ping time before reboot, in seconds
+:global waitTimeout 600
+
+# Last time when ping script was run
+:global watchdog
+
+# Current timestamp
+:global timestamp $timestamp
+:global now [:put [$timestamp]]
+
+# Debug output in the log info
+:global debug 1
+
+:if ($watchdog + $waitTimeout < $now) do={
+  :log warning "Timestamp was more than $waitTimeout seconds ago, rebooting..."
+  /system reboot
+} else={
+  :if ($debug = 1) do={
+    :local diff [($watchdog + $waitTimeout - $now)]
+    :log info "Everything is good, $diff seconds before reboot!" 
+  }
+}
