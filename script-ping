@@ -1,0 +1,7 @@
+# Valentin Kim imort.kz@gmail.com
+#===========================
+# 
+# Renew the watchdog variable value with current timestamp
+#
+:global timestamp $timestamp
+:global watchdog [:put [$timestamp]]
